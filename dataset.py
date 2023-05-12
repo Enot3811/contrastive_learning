@@ -6,7 +6,12 @@ import torch
 
 
 class RegionGetting:  
+    """
+    Селектор регионов.
 
+    Позволяет брать регионы с одного изображения без повторов и с минимальным
+    заданным расстоянием между друг другом.
+    """    
     def __init__(
         self,
         image_size: Tuple[int, int],
@@ -15,6 +20,20 @@ class RegionGetting:
         regions_per_image: int = 2,
         region_margin: int = 1
     ):
+        """
+        Инициализация селектора.
+
+        Args:
+            image_size (Tuple[int, int]): Размер изображений, из которых будут
+            браться регионы.
+            region_size (Tuple[int, int]): Размер регионов, которые будут
+            извлекаться.
+            stride (int, optional): Шаг окна региона.
+            regions_per_image (int, optional): Сколько регионов необходимо
+            выбрать с одного изображения.
+            region_margin (int, optional): Минимальное расстояние в регионах
+            между выбираемыми регионами.
+        """        
         self.region_margin = region_margin
         self.regions_per_image = regions_per_image
         self.image_size = image_size
@@ -41,6 +60,15 @@ class RegionGetting:
         self.y_windows = self.y_indexer.size(0)
 
     def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
+        """
+        Выбрать регионы из изображения.
+
+        Args:
+            img (torch.Tensor): Изображение.
+
+        Returns:
+            List[torch.Tensor]: Список тензоров с выбранными регионами.
+        """        
         h, w = self.image_size
         
         # Регионы будут браться исходя из логической матрицы
