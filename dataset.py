@@ -71,7 +71,7 @@ class RegionGetting:
         self.image_size = image_size
 
         h, w = image_size
-        w_reg, h_reg = region_size
+        h_reg, w_reg = region_size
 
         if stride is None:
             stride = w_reg
@@ -93,13 +93,15 @@ class RegionGetting:
 
     def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
-        Выбрать регионы из изображения.
+        Выбрать регионы из изображения или батча изображений.
 
         Args:
-            img (torch.Tensor): Изображение.
+            img (torch.Tensor): Изображение или батч.
 
         Returns:
-            List[torch.Tensor]: Список тензоров с выбранными регионами.
+            List[torch.Tensor]: Список тензоров с выбранными регионами
+            размерами `[c, h_reg, w_reg]` для одного изображения и
+            `[b, c, h_reg, w_reg]` для батча.
         """        
         h, w = self.image_size
         
@@ -111,13 +113,12 @@ class RegionGetting:
         while len(gotten_regions) != self.regions_per_image:
             x_idx = torch.randint(0, self.x_windows, ())
             y_idx = torch.randint(0, self.y_windows, ())
-
             # Если подобранный регион можно взять
             if available_regions[x_idx, y_idx]:
                 x_slice = self.x_indexer[x_idx]
                 y_slice = self.y_indexer[y_idx]
                 # Окно берётся
-                gotten_regions.append(img[:, y_slice][:, :, x_slice])
+                gotten_regions.append(img[..., y_slice, :][..., x_slice])
                 # В логической матрице блокируется данный регион и соседи
                 # на расстоянии margin регионов
                 _start_bl = max(0, x_idx - self.region_margin)
