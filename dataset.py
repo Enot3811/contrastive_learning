@@ -5,6 +5,38 @@ import cv2
 import torch
 
 
+class ContrastiveTransformations:
+    """
+    Обработчик для contrastive обучения.
+
+    Производит аугментацию одного изображения несколькими разными способами.
+    """    
+    
+    def __init__(self, base_transforms: Callable, n_views: int = 2):
+        """
+        Инициализация обработчика.
+
+        Args:
+            base_transforms (Callable): Трансформации для изображений.
+            n_views (int, optional): Количество необходимых семплов
+            трансформации.
+        """        
+        self.base_transforms = base_transforms
+        self.n_views = n_views
+        
+    def __call__(self, x: torch.Tensor) -> List[torch.Tensor]:
+        """
+        Произвести трансформацию изображения.
+
+        Args:
+            x (torch.Tensor): Исходное изображение.
+
+        Returns:
+            List[torch.Tensor]: Лист с разными обработками одного изображения.
+        """        
+        return [self.base_transforms(x) for i in range(self.n_views)]
+
+
 class RegionGetting:  
     """
     Селектор регионов.
