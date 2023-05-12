@@ -233,3 +233,30 @@ def show_grid(
         axs[row][column].get_xaxis().set_visible(False)
         axs[row][column].imshow(arr[i])
     return axs
+
+
+def display_image(
+    img: Union[torch.Tensor, np.ndarray],
+    ax: Optional[plt.Axes] = None
+) -> plt.Axes:
+    """
+    Display an image on a matplotlib figure.
+    Parameters
+    ----------
+    img : Union[torch.Tensor, np.ndarray]
+        An image to display. If got torch.Tensor then convert it
+        to np.ndarray with axes permutation.
+    ax : Optional[plt.Axes], optional
+        Axes for image showing. If not given then a new Figure and Axes
+        will be created.
+    Returns
+    -------
+    plt.Axes
+        Axes with showed image.
+    """
+    if isinstance(img, torch.Tensor):
+        img = img.clone().detach().cpu().permute(1, 2, 0).numpy()
+    if ax is None:
+        _, ax = plt.subplots(figsize=(16, 8))
+    ax.imshow(img)
+    return ax
