@@ -1,16 +1,11 @@
 from pathlib import Path
-from typing import Callable, List, Tuple, Union, Optional
 import random
 
-import torch
-import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-import numpy as np
-import cv2
 
 from dataset import RegionGetting, RegionsDataset, ContrastiveTransformations
-from image_tools import display_image, normalize_image, read_image
+from image_tools import display_image
 
 
 def main():
