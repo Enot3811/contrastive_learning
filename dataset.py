@@ -1,4 +1,11 @@
-class RegionGetting:
+from typing import Tuple, Callable, List
+from pathlib import Path
+
+import cv2
+import torch
+
+
+class RegionGetting:  
 
     def __init__(
         self,
@@ -23,11 +30,11 @@ class RegionGetting:
         # индексы для определённого окна
         self.x_indexer = (
             torch.arange(0, w_reg)[None, :] +
-            torch.arange(0, w - w_reg - 1, stride)[None, :].T
+            torch.arange(0, w - w_reg + 1, stride)[None, :].T
         )
         self.y_indexer = (
             torch.arange(0, h_reg)[None, :] +
-            torch.arange(0, h - h_reg - 1, stride)[None, :].T
+            torch.arange(0, h - h_reg + 1, stride)[None, :].T
         )
         # По сути сколько окон, столько и элементов в индексаторе
         self.x_windows = self.x_indexer.size(0)
@@ -50,6 +57,7 @@ class RegionGetting:
                 x_slice = self.x_indexer[x_idx]
                 y_slice = self.y_indexer[y_idx]
                 # Окно берётся
+                gotten_regions.append(img[:, y_slice][:, :, x_slice])
                 # В логической матрице блокируется данный регион и соседи
                 # на расстоянии margin регионов
                 _start_bl = max(0, x_idx - self.region_margin)
