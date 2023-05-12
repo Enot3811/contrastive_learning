@@ -282,11 +282,15 @@ def normalize_image(
     if isinstance(img, torch.Tensor):
         max_ch = img.amax(axis=(1, 2))
         min_ch = img.amin(axis=(1, 2))
-        return (img - min_ch[:, None, None]) / (min_ch - max_ch)[:, None, None]
+        normalized = ((img - min_ch[:, None, None]) /
+                      (min_ch - max_ch)[:, None, None])
+        return torch.clip(normalized, 0.0, 1.0)
     elif isinstance(img, np.ndarray):
         max_ch = img.amax(axis=(0, 1))
         min_ch = img.amin(axis=(0, 1))
-        return (img - min_ch[None, None, :]) / (min_ch - max_ch)[None, None, :]
+        normalized = ((img - min_ch[None, None, :]) /
+                      (min_ch - max_ch)[None, None, :])
+        return np.clip(normalized, 0.0, 1.0)
     else:
         raise TypeError(
             'Given image must be np.ndarray or torch.Tensor but it has '
