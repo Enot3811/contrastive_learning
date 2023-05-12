@@ -18,6 +18,9 @@ class RegionGetting:
         if stride is None:
             stride = w_reg
         
+        # На основе размеров изображений, окон и шага окна создаются
+        # индексаторы, обратившись по индексам к которым можно получить
+        # индексы для определённого окна
         self.x_indexer = (
             torch.arange(0, w_reg)[None, :] +
             torch.arange(0, w - w_reg - 1, stride)[None, :].T
@@ -26,13 +29,14 @@ class RegionGetting:
             torch.arange(0, h_reg)[None, :] +
             torch.arange(0, h - h_reg - 1, stride)[None, :].T
         )
-
+        # По сути сколько окон, столько и элементов в индексаторе
         self.x_windows = self.x_indexer.size(0)
         self.y_windows = self.y_indexer.size(0)
 
     def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         h, w = self.image_size
         
+        # Регионы будут браться исходя из логической матрицы
         available_regions = torch.ones(
             self.x_windows, self.y_windows, dtype=torch.bool)
         
@@ -41,11 +45,13 @@ class RegionGetting:
             x_idx = torch.randint(0, self.x_windows, ())
             y_idx = torch.randint(0, self.y_windows, ())
 
+            # Если подобранный регион можно взять
             if available_regions[x_idx, y_idx]:
                 x_slice = self.x_indexer[x_idx]
                 y_slice = self.y_indexer[y_idx]
-
-                gotten_regions.append(img[:, x_slice][:, :, y_slice])
+                # Окно берётся
+                # В логической матрице блокируется данный регион и соседи
+                # на расстоянии margin регионов
                 _start_bl = max(0, x_idx - self.region_margin)
                 _end_bl = min(x_idx + self.region_margin + 1, w)
                 x_blocking = slice(_start_bl, _end_bl)
@@ -53,7 +59,8 @@ class RegionGetting:
                 _end_bl = min(y_idx + self.region_margin + 1, h)
                 y_blocking = slice(_start_bl, _end_bl)
                 available_regions[y_blocking, x_blocking] = False
-            print(x_idx * 112, y_idx * 112)
+                # print(available_regions)
+            # print(x_idx * 112, y_idx * 112)
         return gotten_regions
 
 
