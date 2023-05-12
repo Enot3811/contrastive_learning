@@ -283,13 +283,13 @@ def normalize_image(
         max_ch = img.amax(axis=(1, 2))
         min_ch = img.amin(axis=(1, 2))
         normalized = ((img - min_ch[:, None, None]) /
-                      (min_ch - max_ch)[:, None, None])
+                      (max_ch - min_ch)[:, None, None])
         return torch.clip(normalized, 0.0, 1.0)
     elif isinstance(img, np.ndarray):
         max_ch = img.amax(axis=(0, 1))
         min_ch = img.amin(axis=(0, 1))
         normalized = ((img - min_ch[None, None, :]) /
-                      (min_ch - max_ch)[None, None, :])
+                      (max_ch - min_ch)[None, None, :])
         return np.clip(normalized, 0.0, 1.0)
     else:
         raise TypeError(
