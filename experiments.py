@@ -3,79 +3,76 @@ from typing import Callable, List, Tuple, Union, Optional
 import random
 
 import torch
+import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 
-
-def augm1():
-    
-    transforms = transforms.Compose([
-        transforms.Resize((512, 512)),
-        transforms.ColorJitter(
-            brightness=0.5,
-            contrast=0.5,
-            saturation=0.5,
-            hue=0.5
-        ),
-        transforms.RandomRotation(360)
-    ])
-
-    path = Path(__file__).parents[1] / 'data' / 'satellite_small'
-
-    dset = torchvision.datasets.ImageFolder(str(path), transforms)
-    for i, (image, label) in enumerate(dset):
-        cv2.imshow(f'Img {i + 1}', np.array(image))
-        key = cv2.waitKey(20000)
-        if key == 27:
-            break
-
-
-def display_image(
-    img: Union[torch.Tensor, np.ndarray],
-    ax: Optional[plt.Axes] = None
-) -> plt.Axes:
-    """
-    Display an image on a matplotlib figure.
-    Parameters
-    ----------
-    img : Union[torch.Tensor, np.ndarray]
-        An image to display. If got torch.Tensor then convert it
-        to np.ndarray with axes permutation.
-    ax : Optional[plt.Axes], optional
-        Axes for image showing. If not given then a new Figure and Axes
-        will be created.
-    Returns
-    -------
-    plt.Axes
-        Axes with showed image.
-    """
-    if isinstance(img, torch.Tensor):
-        img = img.clone().detach().cpu().permute(1, 2, 0).numpy()
-    if ax is None:
-        _, ax = plt.subplots(figsize=(16, 8))
-    ax.imshow(img)
-    return ax
+from dataset import RegionGetting, RegionsDataset, ContrastiveTransformations
+from image_tools import display_image, normalize_image, read_image
 
 
 def main():
+    # Создаём датасет с разными спутниковыми снимками
     path = Path(__file__).parents[1] / 'data' / 'satellite_small' / 'train'
     dset = RegionsDataset(path)
-    for _ in range(10):
+
+    #tensor([104.0949,  96.6685,  71.8058]) tensor([32.4278, 25.7516, 22.6969])
+    # mean, std = dset.calculate_mean_std()
+    # [0.40821529 0.37909216 0.28159137] [0.12716784 0.10098667 0.08900745]
+    # print(mean / 255, std / 255)
+    # Параметры для нормализации изображения
+    mean = [0.40821529, 0.37909216, 0.28159137]
+    std = [0.12716784, 0.10098667, 0.08900745]
+    normalize = transforms.Normalize(mean = mean, std = std)
+
+    for _ in range(2):
+        # Считываем какой-нибудь снимок
         img = dset[random.randint(0, len(dset))]
+        img = img[:, 0:560, 0:560]
 
         img_size = img.shape[1:]
         reg_size = (112, 112)
 
-        reg_get = RegionGetting(img_size, reg_size)
+        # Берём 2 случайных региона
+        reg_get = RegionGetting(img_size, reg_size, stride=56)
         regions = reg_get(img)
 
+        # Исходный снимок
         display_image(img)
 
+        # 2 выбранных региона
         fig, axs = plt.subplots(1, 2)
         for i, region in enumerate(regions):
             axs[i] = display_image(region, axs[i])
+
+        # Преобразователь для contrastive
+        contrast_transforms = transforms.Compose(
+            [transforms.RandomHorizontalFlip(),
+             transforms.RandomApply([
+                 transforms.ColorJitter(brightness=0.5, 
+                                         contrast=0.5, 
+                                         saturation=0.5, 
+                                         hue=0.1)
+             ], p=0.8),
+             transforms.RandomGrayscale(p=0.2),
+             transforms.GaussianBlur(kernel_size=9)
+            ])
+        transformer = ContrastiveTransformations(contrast_transforms)
+
+        # Отображаем 2 региона аугментированные разным образом
+        for region in regions:
+            region = region
+            fig, axs = plt.subplots(1, 2)
+            augmented_regs = transformer(region)
+            for i in range(2):
+                augmented_regs[i] = augmented_regs[i] / 255.0
+                axs[i] = display_image(augmented_regs[i], axs[i])
+                # Нормализуем после отображения,
+                # чтобы картинка нормально смотрелась
+                augmented_regs[i] = normalize(augmented_regs[i])
+
 
         plt.show()
 
