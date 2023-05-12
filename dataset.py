@@ -174,3 +174,18 @@ class RegionsDataset(torch.utils.data.Dataset):
         if self.processing is not None:
             img = self.processing(img)
         return img
+    
+    def calculate_mean_std(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Calculate mean and std for every channel over dataset.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: Mean and std of the dataset.
+        """        
+        means = []
+        stds = []
+        for i in range(len(self)):
+            img = self[i].float()
+            means.append(img.mean(axis=(1, 2)))
+            stds.append(img.std(axis=(1, 2)))
+        return torch.stack(means).mean(axis=0), torch.stack(stds).mean(axis=0)
