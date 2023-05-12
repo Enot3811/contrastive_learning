@@ -73,6 +73,9 @@ class RegionGetting:
 
 
 class RegionsDataset(torch.utils.data.Dataset):
+    """
+    Датасет возвращающий изображения регионов из указанной директории.
+    """    
 
     def __init__(
         self,
@@ -80,6 +83,13 @@ class RegionsDataset(torch.utils.data.Dataset):
         processing: Callable = None,
         **kwargs
     ):
+        """
+        Инициализация датасета.
+
+        Args:
+            image_directory (Path): Директория с изображениями.
+            processing (Callable, optional): Функции предобработки данных.
+        """        
         self.images = list(map(str, image_directory.rglob('*.jpg')))
         self.processing = processing
         super().__init__(**kwargs)
@@ -87,7 +97,16 @@ class RegionsDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self.images)
     
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        """
+        Возвращает изображение из датасета по индексу.
+
+        Args:
+            idx (int): Индекс изображения.
+
+        Returns:
+            torch.Tensor: Тензор со считанным изображением.
+        """        
         img = cv2.imread(self.images[idx])
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = torch.tensor(img).permute(2, 0, 1)
