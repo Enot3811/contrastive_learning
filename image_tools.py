@@ -260,3 +260,34 @@ def display_image(
         _, ax = plt.subplots(figsize=(16, 8))
     ax.imshow(img)
     return ax
+
+
+def normalize_image(
+    img: Union[np.ndarray, torch.Tensor]
+) -> Union[np.ndarray, torch.Tensor]:
+    """
+    Нормализовать изображение в диапазон от 0 до 1.
+
+    Args:
+        img (Union[np.ndarray, torch.Tensor]): Массив или тензор
+        с изображением.
+
+    Raises:
+        TypeError: Given image must be np.ndarray or torch.Tensor.
+
+    Returns:
+        Union[np.ndarray, torch.Tensor]: Нормализованное изображение в том же
+        типе данных, в котором было дано.
+    """    
+    if isinstance(img, torch.Tensor):
+        max_ch = img.amax(axis=(1, 2))
+        min_ch = img.amin(axis=(1, 2))
+        return (img - min_ch[:, None, None]) / (min_ch - max_ch)[:, None, None]
+    elif isinstance(img, np.ndarray):
+        max_ch = img.amax(axis=(0, 1))
+        min_ch = img.amin(axis=(0, 1))
+        return (img - min_ch[None, None, :]) / (min_ch - max_ch)[None, None, :]
+    else:
+        raise TypeError(
+            'Given image must be np.ndarray or torch.Tensor but it has '
+            f'{type(img)}')
