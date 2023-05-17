@@ -263,7 +263,9 @@ def display_image(
 
 
 def normalize_image(
-    img: Union[np.ndarray, torch.Tensor]
+    img: Union[np.ndarray, torch.Tensor],
+    max_values: Optional[Tuple[Union[int, float]]] = None,
+    min_values: Optional[Tuple[Union[int, float]]] = None
 ) -> Union[np.ndarray, torch.Tensor]:
     """
     Нормализовать изображение в диапазон от 0 до 1.
@@ -271,6 +273,12 @@ def normalize_image(
     Args:
         img (Union[np.ndarray, torch.Tensor]): Массив или тензор
         с изображением.
+        max_values (Optional[Tuple[Union[int, float]]], optional): Максимальные
+        значения каналов изображения. Если не заданы, берутся максимальные
+        значения из переданного изображения
+        min_values (Optional[Tuple[Union[int, float]]], optional): Минимальные
+        значения каналов изображения. Если не заданы, берутся минимальные
+        значения из переданного изображения
 
     Raises:
         TypeError: Given image must be np.ndarray or torch.Tensor.
@@ -278,16 +286,24 @@ def normalize_image(
     Returns:
         Union[np.ndarray, torch.Tensor]: Нормализованное изображение в том же
         типе данных, в котором было дано.
-    """    
+    """
     if isinstance(img, torch.Tensor):
-        max_ch = img.amax(axis=(1, 2))
-        min_ch = img.amin(axis=(1, 2))
+        if max_values is None:
+            max_ch = img.amax(axis=(1, 2))
+            min_ch = img.amin(axis=(1, 2))
+        else:
+            max_ch = torch.tensor(max_values, dtype=img.dtype)
+            min_ch = torch.tensor(min_values, dtype=img.dtype)
         normalized = ((img - min_ch[:, None, None]) /
                       (max_ch - min_ch)[:, None, None])
         return torch.clip(normalized, 0.0, 1.0)
     elif isinstance(img, np.ndarray):
-        max_ch = img.amax(axis=(0, 1))
-        min_ch = img.amin(axis=(0, 1))
+        if max_values is None:
+            max_ch = img.max(axis=(0, 1))
+            min_ch = img.min(axis=(0, 1))
+        else:
+            max_ch = np.array(max_values, dtype=img.dtype)
+            min_ch = np.array(min_values)
         normalized = ((img - min_ch[None, None, :]) /
                       (max_ch - min_ch)[None, None, :])
         return np.clip(normalized, 0.0, 1.0)
