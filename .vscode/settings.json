@@ -1,0 +1,9 @@
+{
+    "editor.rulers": [79],
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.linting.flake8Args": [
+        "--config=flake8.ini"
+    ],
+    "cSpell.enabled": true
+}
