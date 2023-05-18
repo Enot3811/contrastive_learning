@@ -172,31 +172,6 @@ def rotate_img(img: np.ndarray, angle: float) -> np.ndarray:
     return dst
 
 
-def process_raw_real_image(
-    image: np.ndarray,
-    angle: Optional[float] = 32.0,
-    white_space: Optional[float] = 0.15
-) -> np.ndarray:
-    """
-    Given real images are rotated by angle about 32 degrees, and have white
-    empty space around image.
-    Rotate the given image and cut white space.
-
-    Args:
-        image (np.ndarray): The image to process.
-        angle (Optional[float], optional): The angle of rotating.
-        white_space (Optional[float], optional): A percent of white space.
-
-    Returns:
-        np.ndarray: The processed image.
-    """
-    h, w, _ = image.shape
-    rotated_img = rotate_img(image, angle)
-    cut_img = rotated_img[int(h * white_space):h - int(h * white_space),
-                          int(w * white_space):w - int(w * white_space)]
-    return cut_img
-
-
 def show_grid(
     arr: np.ndarray,
     h: int,
