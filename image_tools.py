@@ -1,4 +1,4 @@
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, Tuple
 from pathlib import Path
 
 import numpy as np
@@ -9,24 +9,26 @@ import matplotlib.pyplot as plt
 
 
 def read_image(path: Union[Path, str], grayscale: bool = False) -> np.ndarray:
-    """
-    Read image to numpy array.
+    """Read image to numpy array.
+
     Parameters
     ----------
     path : Union[Path, str]
         Path to image file
     grayscale : bool, optional
-        Whether read image in grayscale, by default False
-    Returns
-    -------
-    np.ndarray
-        Array containing read image.
+        Whether read image in grayscale, by default False.
+
     Raises
     ------
     FileNotFoundError
         Did not find image.
     ValueError
         Image reading is not correct.
+
+    Returns
+    -------
+    np.ndarray
+        Array containing read image.
     """
     if isinstance(path, str):
         path = Path(path)
@@ -66,18 +68,27 @@ def get_scaled_shape(
     Конвертация поля зрения и шага перекрывающего окна из метров в пиксели
     при новом размере изображения.
 
-    Args:
-        orig_h (int): Исходная высота изображения в пикселях.
-        orig_w (int): Исходная ширина изображения в пикселях.
-        orig_scale (float): Исходный масштаб изображения (метров на пиксель).
-        overlap_step (float): перекрывающий шаг в метрах.
-        fov (float): Размер стороны поля зрения в метрах.
-        net_size (Optional[int], optional): Размер входа сети.
+    Parameters
+    ----------
+    orig_h : int
+        Исходная высота изображения в пикселях.
+    orig_w : int
+        Исходная ширина изображения в пикселях.
+    orig_scale : float
+        Исходный масштаб изображения (метров на пиксель).
+    overlap_step : float
+        перекрывающий шаг в метрах.
+    fov : float
+        Размер стороны поля зрения в метрах.
+    net_size : int, optional
+        Размер входа сети. По умолчанию равен 112.
 
-    Returns:
-        Tuple[int, int, int, int]: Новый размеры изображения,
-        размер перекрывающего шага в пикселях и новый масштаб.
-    """    
+    Returns
+    -------
+    Tuple[int, int, int, int]
+        Новый размеры изображения, размер перекрывающего шага в пикселях
+        и новый масштаб.
+    """
     fov_px = fov / orig_scale  # Поле зрения в пикселях
     # Коэффициент масштабирования для привидения размеров участка
     # к размеру входа сети
@@ -96,22 +107,23 @@ def get_scaled_shape(
 def resize_image(
     image: np.ndarray,
     new_size: Tuple[int, int],
-    interpolation: Optional[int] = cv2.INTER_LINEAR
+    interpolation: int = cv2.INTER_LINEAR
 ) -> np.ndarray:
-    """
-    Resize image to given size.
+    """Resize an image to a given size.
 
     Parameters
     ----------
     image : np.ndarray
-        Image to resize.
+        The image to resize.
     new_size : Tuple[int, int]
-        Tuple containing new image size.
+        A Tuple containing the new image size.
+    interpolation : int, optional
+        An interpolation type, by default cv2.INTER_LINEAR.
 
     Returns
     -------
     np.ndarray
-        Resized image
+        The resized image.
     """
     return cv2.resize(
         image, new_size, None, None, None, interpolation=interpolation)
@@ -121,21 +133,27 @@ def get_sliding_windows(
     source_image: np.ndarray,
     h_win: int,
     w_win: int,
-    stride: Optional[int] = None
+    stride: int = None
 ) -> np.ndarray:
+    """Cut a given image into windows with defined shapes and stride.
+
+    Parameters
+    ----------
+    source_image : np.ndarray
+        The original image.
+    h_win : int
+        Height of the windows.
+    w_win : int
+        Width of the windows.
+    stride : int, optional
+        The stride of the sliding windows.
+        If not defined it will be set by `w_win` value.
+
+    Returns
+    -------
+    np.ndarray
+        The cut image with shape `[num_windows, h_win, w_win, c]`.
     """
-    Cut a given image into windows with defined shapes and stride.
-
-    Args:
-        source_image (np.ndarray): The original image.
-        h_win (int): Height of the windows.
-        w_win (int): Width of the windows.
-        stride (Optional[int]): The stride of the sliding windows.
-        If not defined it will be set by w_win value.
-
-    Returns:
-        np.ndarray: The cut image with shape `[num_windows, h_win, w_win, c]`.
-    """    
     w, h, c = source_image.shape
 
     if stride is None:
@@ -155,16 +173,20 @@ def get_sliding_windows(
 
 
 def rotate_img(img: np.ndarray, angle: float) -> np.ndarray:
+    """Rotate an image by given angle in degrees.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        The image to rotate with shape `[h, w, c]`.
+    angle : float
+        The angle of rotating.
+
+    Returns
+    -------
+    np.ndarray
+        The rotated image with shape `[h, w, c]`.
     """
-    Rotate an image by given angle in degrees.
-
-    Args:
-        img (np.ndarray): The image to rotate with shape `[h, w, c]`.
-        angle (float): The angle of rotating.
-
-    Returns:
-        np.ndarray: The rotated image with shape `[h, w, c]`.
-    """    
     h, w, _ = img.shape
 
     M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), angle, 1)
@@ -178,18 +200,24 @@ def show_grid(
     w: int,
     size: Tuple[float, float] = (20.0, 20.0)
 ) -> Tuple[Figure, plt.Axes]:
+    """Show a batch of images on a grid.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        The batch of the images with shape `[b, h, w, c]`.
+    h : int
+        A number of images in one column of the grid.
+    w : int
+        A number of images in one string of the grid.
+    size : Tuple[float, float], optional
+        A size of plt figure.
+
+    Returns
+    -------
+    Tuple[Figure, plt.Axes]
+        The figure and axes with showed images.
     """
-    Show a batch of images on a grid.
-
-    Args:
-        arr (np.ndarray): The batch of the images with shape `[b, h, w, c]`.
-        h (int): A number of images in one column of the grid.
-        w (int): A number of images in one string of the grid.
-        size (Tuple[float, float], optional): A size of plt figure.
-
-    Returns:
-        Tuple[Figure, plt.Axes]: The figure and axes with showed images.
-    """    
     fig, axs = plt.subplots(h, w)
     fig.set_size_inches(*size, forward=True)
     plt.tight_layout()
@@ -207,8 +235,8 @@ def display_image(
     img: Union[torch.Tensor, np.ndarray],
     ax: Optional[plt.Axes] = None
 ) -> plt.Axes:
-    """
-    Display an image on a matplotlib figure.
+    """Display an image on a matplotlib figure.
+
     Parameters
     ----------
     img : Union[torch.Tensor, np.ndarray]
@@ -217,6 +245,7 @@ def display_image(
     ax : Optional[plt.Axes], optional
         Axes for image showing. If not given then a new Figure and Axes
         will be created.
+
     Returns
     -------
     plt.Axes
@@ -232,28 +261,31 @@ def display_image(
 
 def normalize_image(
     img: Union[np.ndarray, torch.Tensor],
-    max_values: Optional[Tuple[Union[int, float]]] = None,
-    min_values: Optional[Tuple[Union[int, float]]] = None
+    max_values: Tuple[Union[int, float]] = None,
+    min_values: Tuple[Union[int, float]] = None
 ) -> Union[np.ndarray, torch.Tensor]:
-    """
-    Нормализовать изображение в диапазон от 0 до 1.
+    """Нормализовать изображение в диапазон от 0 до 1.
 
-    Args:
-        img (Union[np.ndarray, torch.Tensor]): Массив или тензор
-        с изображением.
-        max_values (Optional[Tuple[Union[int, float]]], optional): Максимальные
-        значения каналов изображения. Если не заданы, берутся максимальные
-        значения из переданного изображения
-        min_values (Optional[Tuple[Union[int, float]]], optional): Минимальные
-        значения каналов изображения. Если не заданы, берутся минимальные
-        значения из переданного изображения
+    Parameters
+    ----------
+        img : Union[np.ndarray, torch.Tensor]
+            Массив или тензор с изображением.
+        max_values : Tuple[Union[int, float]], optional)
+            Максимальные значения каналов изображения. Если не заданы,
+            берутся максимальные значения из переданного изображения.
+        min_values : Tuple[Union[int, float]], optional
+            Минимальные значения каналов изображения. Если не заданы,
+            берутся минимальные значения из переданного изображения.
 
-    Raises:
-        TypeError: Given image must be np.ndarray or torch.Tensor.
+    Raises
+    ------
+    TypeError
+        Given image must be np.ndarray or torch.Tensor.
 
-    Returns:
-        Union[np.ndarray, torch.Tensor]: Нормализованное изображение в том же
-        типе данных, в котором было дано.
+    Returns
+    -------
+    Union[np.ndarray, torch.Tensor]
+        Нормализованное изображение в том же типе данных, в котором было дано.
     """
     if isinstance(img, torch.Tensor):
         if max_values is None:
