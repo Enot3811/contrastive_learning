@@ -40,6 +40,22 @@ def read_image(path: Union[Path, str], grayscale: bool = False) -> np.ndarray:
     return img
 
 
+def save_image(img: np.ndarray, path: Path) -> None:
+    """Сохранить переданное изображение по указанному пути.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Сохраняемое изображение.
+    path : Path
+        Путь для сохранения изображения.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    success = cv2.imwrite(str(path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+    if not success:
+        raise RuntimeError('Не удалось сохранить изображение.')
+
+
 def get_scaled_shape(
     orig_h: int, orig_w: int, orig_scale: float,
     overlap_step: float, fov: float, net_size: Optional[int] = 112
