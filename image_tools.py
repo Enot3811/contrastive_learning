@@ -154,29 +154,6 @@ def get_sliding_windows(
     return windows
 
 
-def load_images(image_paths: List[Path]) -> torch.Tensor:
-    """
-    Load and prepare images to pass into a network.
-
-    Args:
-        image_paths (List[Path]): Paths to the needed images.
-
-    Returns:
-        torch.Tensor: Loaded and processed images with shape
-        `[num_images, c, h, w].`
-    """    
-    images = []
-    for img in image_paths:
-        img = cv2.imread(str(img))
-        img = cv2.resize(img, (112, 112))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = np.transpose(img, (2, 0, 1))
-        img = torch.from_numpy(img).unsqueeze(0).float()
-        img.div_(255).sub_(0.5).div_(0.5)
-        images.append(img)
-    return torch.cat(images)
-
-
 def rotate_img(img: np.ndarray, angle: float) -> np.ndarray:
     """
     Rotate an image by given angle in degrees.
