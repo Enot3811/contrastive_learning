@@ -1,11 +1,11 @@
-from typing import Optional, Union, Tuple
+from typing import Union, Tuple
 from pathlib import Path
 
 import numpy as np
 import cv2
-import torch
-from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 
 def read_image(path: Union[Path, str], grayscale: bool = False) -> np.ndarray:
@@ -42,16 +42,18 @@ def read_image(path: Union[Path, str], grayscale: bool = False) -> np.ndarray:
     return img
 
 
-def save_image(img: np.ndarray, path: Path) -> None:
+def save_image(img: np.ndarray, path: Union[Path, str]) -> None:
     """Сохранить переданное изображение по указанному пути.
 
     Parameters
     ----------
     img : np.ndarray
         Сохраняемое изображение.
-    path : Path
+    path : Union[Path, str]
         Путь для сохранения изображения.
     """
+    if isinstance(path, str):
+        path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     success = cv2.imwrite(str(path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
     if not success:
@@ -60,7 +62,7 @@ def save_image(img: np.ndarray, path: Path) -> None:
 
 def get_scaled_shape(
     orig_h: int, orig_w: int, orig_scale: float,
-    overlap_step: float, fov: float, net_size: Optional[int] = 112
+    overlap_step: float, fov: float, net_size: int = 112
 ) -> Tuple[int, int, int, float]:
     """
     Масштабирование размеров изображения, исходя из размеров поля зрения
@@ -97,9 +99,9 @@ def get_scaled_shape(
     new_scale = orig_scale * resize_coef
 
     # Отмасштабированный шаг перекрывающего окна в пикселях
-    scaled_overlap_px = int(overlap_step / new_scale)  # 16 пикселей для 30 метров
+    scaled_overlap_px = int(overlap_step / new_scale)
     # Новые размеры изображения
-    h = int(orig_h / resize_coef)  # 
+    h = int(orig_h / resize_coef)
     w = int(orig_w / resize_coef)
     return h, w, scaled_overlap_px, new_scale
 
@@ -126,7 +128,7 @@ def resize_image(
         The resized image.
     """
     return cv2.resize(
-        image, new_size, None, None, None, interpolation=interpolation)
+        image, new_size[::-1], None, None, None, interpolation=interpolation)
 
 
 def get_sliding_windows(
@@ -152,23 +154,22 @@ def get_sliding_windows(
     Returns
     -------
     np.ndarray
-        The cut image with shape `[num_windows, h_win, w_win, c]`.
+        The cut image with shape `[n_h_win, n_w_win, h_win, w_win, c]`.
     """
-    w, h, c = source_image.shape
+    h, w, c = source_image.shape
 
     if stride is None:
         stride = w_win
 
     x_indexer = (
         np.expand_dims(np.arange(w_win), 0) +
-        np.expand_dims(np.arange(w - w_win - 1, step=stride), 0).T
+        np.expand_dims(np.arange(w - w_win, step=stride), 0).T
     )
     y_indexer = (
         np.expand_dims(np.arange(h_win), 0) +
-        np.expand_dims(np.arange(h - h_win - 1, step=stride), 0).T
+        np.expand_dims(np.arange(h - h_win, step=stride), 0).T
     )
-    windows = source_image[x_indexer][:, :, y_indexer].swapaxes(1, 2)
-    windows = windows.reshape(-1, w_win, h_win, c)
+    windows = source_image[y_indexer][:, :, x_indexer].swapaxes(1, 2)
     return windows
 
 
@@ -187,11 +188,44 @@ def rotate_img(img: np.ndarray, angle: float) -> np.ndarray:
     np.ndarray
         The rotated image with shape `[h, w, c]`.
     """
+    img = img.copy()
     h, w, _ = img.shape
 
     M = cv2.getRotationMatrix2D(((w - 1) / 2.0, (h - 1) / 2.0), angle, 1)
     dst = cv2.warpAffine(img, M, (w, h), borderValue=(255, 255, 255))
     return dst
+
+
+def process_raw_real_image(
+    image: np.ndarray,
+    angle: float = 32.0,
+    white_space: float = 0.15
+) -> np.ndarray:
+    """Повернуть изображение и обрезать белые край.
+
+    Исходное изображение повёрнуто на угол около 32 градусов и имеет белое
+    пустое пространство по краям. Данная функция преобразует изображение к
+    нормальному виду.
+
+    Parameters
+    ----------
+    image : np.ndarray:
+        Исходное изображение для обработки.
+    angle : float, optional
+        Угол поворота. По умолчанию 32.
+    white_space : float, optional
+        Доля белого пространства в размерах после поворота. По умолчанию 0.15.
+
+    Returns
+    -------
+        np.ndarray: Обработанное изображение.
+    """
+    image = image.copy()
+    h, w, _ = image.shape
+    rotated_img = rotate_img(image, angle)
+    cut_img = rotated_img[int(h * white_space):h - int(h * white_space),
+                          int(w * white_space):w - int(w * white_space)]
+    return cut_img
 
 
 def show_grid(
@@ -205,7 +239,7 @@ def show_grid(
     Parameters
     ----------
     arr : np.ndarray
-        The batch of the images with shape `[b, h, w, c]`.
+        The batch of the images with shape `[b, h_img, w_img, c]`.
     h : int
         A number of images in one column of the grid.
     w : int
@@ -223,91 +257,105 @@ def show_grid(
     plt.tight_layout()
     plt.subplots_adjust(wspace=0, hspace=0)
     for i in range(arr.shape[0]):
-        row = i // w
-        column = i % w
-        axs[row][column].get_yaxis().set_visible(False)
-        axs[row][column].get_xaxis().set_visible(False)
-        axs[row][column].imshow(arr[i])
+        if h == 1 or w == 1:
+            axs[i].get_yaxis().set_visible(False)
+            axs[i].get_xaxis().set_visible(False)
+            axs[i].imshow(arr[i])
+        else:
+            row = i // w
+            column = i % w
+            axs[row][column].get_yaxis().set_visible(False)
+            axs[row][column].get_xaxis().set_visible(False)
+            axs[row][column].imshow(arr[i])
     return axs
 
 
-def display_image(
-    img: Union[torch.Tensor, np.ndarray],
-    ax: Optional[plt.Axes] = None
-) -> plt.Axes:
-    """Display an image on a matplotlib figure.
+def figure_to_ndarray(fig: Figure) -> np.ndarray:
+    """Конвертирует `figure` в изображение в виде `ndarray`.
 
     Parameters
     ----------
-    img : Union[torch.Tensor, np.ndarray]
-        An image to display. If got torch.Tensor then convert it
-        to np.ndarray with axes permutation.
-    ax : Optional[plt.Axes], optional
-        Axes for image showing. If not given then a new Figure and Axes
-        will be created.
+    fig : Figure
+        Фигура, которую необходимо конвертировать.
 
     Returns
     -------
-    plt.Axes
-        Axes with showed image.
+    np.ndarray
+        Изображение из фигуры.
     """
-    if isinstance(img, torch.Tensor):
-        img = img.clone().detach().cpu().permute(1, 2, 0).numpy()
-    if ax is None:
-        _, ax = plt.subplots(figsize=(16, 8))
-    ax.imshow(img)
-    return ax
+    canvas = FigureCanvasAgg(fig)
+    canvas.draw()  # draw the canvas, cache the renderer
+    image_flat = np.frombuffer(
+        canvas.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
+    image = image_flat.reshape(*fig.canvas.get_width_height(), 3)  # (H, W, 3)
+    return image
 
 
-def normalize_image(
-    img: Union[np.ndarray, torch.Tensor],
-    max_values: Tuple[Union[int, float]] = None,
-    min_values: Tuple[Union[int, float]] = None
-) -> Union[np.ndarray, torch.Tensor]:
-    """Нормализовать изображение в диапазон от 0 до 1.
+def overlay_images(
+    img1: np.ndarray,
+    img2: np.ndarray,
+    img_size: Tuple[int, int] = None
+) -> np.ndarray:
+    """Наложить одно изображение на другое.
 
     Parameters
     ----------
-        img : Union[np.ndarray, torch.Tensor]
-            Массив или тензор с изображением.
-        max_values : Tuple[Union[int, float]], optional)
-            Максимальные значения каналов изображения. Если не заданы,
-            берутся максимальные значения из переданного изображения.
-        min_values : Tuple[Union[int, float]], optional
-            Минимальные значения каналов изображения. Если не заданы,
-            берутся минимальные значения из переданного изображения.
-
-    Raises
-    ------
-    TypeError
-        Given image must be np.ndarray or torch.Tensor.
+    img1 : np.ndarray
+        Первое изображение.
+    img2 : np.ndarray
+        Второе изображение.
+    img_size : Tuple[int, int], optional
+        Размеры итогового изображения.
+        Если не заданы, то берутся размеры первого изображения `img1`.
 
     Returns
     -------
-    Union[np.ndarray, torch.Tensor]
-        Нормализованное изображение в том же типе данных, в котором было дано.
+    np.ndarray
+        Наложенное изображение.
     """
-    if isinstance(img, torch.Tensor):
-        if max_values is None:
-            max_ch = img.amax(axis=(1, 2))
-            min_ch = img.amin(axis=(1, 2))
-        else:
-            max_ch = torch.tensor(max_values, dtype=img.dtype)
-            min_ch = torch.tensor(min_values, dtype=img.dtype)
-        normalized = ((img - min_ch[:, None, None]) /
-                      (max_ch - min_ch)[:, None, None])
-        return torch.clip(normalized, 0.0, 1.0)
-    elif isinstance(img, np.ndarray):
-        if max_values is None:
-            max_ch = img.max(axis=(0, 1))
-            min_ch = img.min(axis=(0, 1))
-        else:
-            max_ch = np.array(max_values, dtype=img.dtype)
-            min_ch = np.array(min_values)
-        normalized = ((img - min_ch[None, None, :]) /
-                      (max_ch - min_ch)[None, None, :])
-        return np.clip(normalized, 0.0, 1.0)
+    if img_size is not None:
+        # Переворачиваем размеры для cv2
+        img_size = img_size[::-1]
+        img1 = cv2.resize(img1, dsize=img_size)
     else:
-        raise TypeError(
-            'Given image must be np.ndarray or torch.Tensor but it has '
-            f'{type(img)}')
+        # Переворачиваем размеры для cv2
+        img_size = img1.shape[1::-1]
+    img2 = cv2.resize(img2, dsize=img_size)
+
+    overlay_img = cv2.addWeighted(img1, 0.5, img2, 0.5, 0.0)
+    return overlay_img
+
+
+def draw_windows_grid(
+    image: np.ndarray, win_size: int, stride: int,
+    color: Tuple[int, int, int] = (255, 0, 0),
+    thickness: int = 1
+) -> np.ndarray:
+    """Нарисовать сетку из перекрывающих окон на изображении.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Исходное изображение.
+    win_size : int
+        Размер окна.
+    stride : int
+        Шаг окна.
+    color : Tuple[int, int, int], optional
+        Цвет рисуемых рамок. По умолчанию - красный.
+    thickness : int, optional
+        Толщина рисуемых рамок. По умолчанию - 1.
+
+    Returns
+    -------
+    np.ndarray
+        Отредактированная картинка.
+    """
+    image = image.copy()  # Копировать изображение, чтобы не испортить исходник
+    h, w = image.shape[:2]
+    for i in range(0, h, stride):
+        for j in range(0, w, stride):
+            image = cv2.rectangle(
+                image, (j, i), (j + win_size, i + win_size),
+                color, thickness)
+    return image
